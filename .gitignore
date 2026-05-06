@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+
+# Generated data (reproduce with python main.py)
+data/raw/
+data/processed/
+data/powerbi/
+
+# Power BI
+*.pbix
+
+# OS
+.DS_Store
+Thumbs.db
