@@ -402,19 +402,31 @@ elif page == "Predictive Insights":
     actuals  = forecast[forecast["is_future"] == False]
     future   = forecast[forecast["is_future"] == True]
 
-    pred_rev   = future["predicted_revenue"].sum()
-    high_risk  = (data["churn"]["risk_level"] == "High").sum()
-    churn_rate = high_risk / len(data["churn"])
+    pred_rev      = future["predicted_revenue"].sum()
+    high_risk     = (data["churn"]["risk_level"] == "High").sum()
+    churn_rate    = high_risk / len(data["churn"])
+    forecast_err  = (
+        actuals["prediction_error"].abs().sum() / actuals["actual_revenue"].sum()
+        if actuals["actual_revenue"].sum() else 0
+    )
 
-    c1, c2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
     c1.metric("Predicted Revenue (next 4 weeks)", _gbp(pred_rev))
-    c2.metric(
+    c2.metric("Forecast Error %", _pct(forecast_err))
+    c3.metric(
         "High Churn Risk Customers", f"{high_risk:,}",
         delta=f"{churn_rate * 100:.0f}% of customer base",
         delta_color="inverse",
     )
 
     st.divider()
+
+    # Bridge: start the forecast line at the last actual point so it reads as a continuation
+    last_actual = actuals.sort_values("week_start").iloc[[-1]].copy()
+    forecast_line = pd.concat([
+        last_actual[["week_start", "predicted_revenue"]],
+        future[["week_start", "predicted_revenue"]],
+    ], ignore_index=True)
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -426,10 +438,10 @@ elif page == "Predictive Insights":
         name="Predicted (in-sample)",
         line=dict(color=PALETTE["green"], dash="dot", width=1.5),
     ))
-    fig.add_trace(go.Bar(
-        x=future["week_start"], y=future["predicted_revenue"],
+    fig.add_trace(go.Scatter(
+        x=forecast_line["week_start"], y=forecast_line["predicted_revenue"],
         name="Forecast (next 4 weeks)",
-        marker_color=PALETTE["purple"], opacity=0.85,
+        line=dict(color=PALETTE["purple"], dash="dash", width=2),
     ))
     fig.update_layout(
         title="Revenue Forecast",
