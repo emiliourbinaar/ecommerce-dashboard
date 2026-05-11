@@ -75,10 +75,10 @@ weekly    = data["weekly"][data["weekly"]["week_start"].dt.year.isin(sel_years)]
 
 def _gbp(v: float) -> str:
     if v >= 1_000_000:
-        return f"£{v / 1_000_000:.2f}M"
+        return f"${v / 1_000_000:.2f}M"
     if v >= 1_000:
-        return f"£{v / 1_000:.2f}K"
-    return f"£{v:.2f}"
+        return f"${v / 1_000:.2f}K"
+    return f"${v:.2f}"
 
 
 def _pct(v: float) -> str:
@@ -120,7 +120,7 @@ if page == "Executive Overview":
         weekly.sort_values("week_start"),
         x="week_start", y="total_revenue",
         title="Weekly Revenue",
-        labels={"week_start": "", "total_revenue": "Revenue (£)"},
+        labels={"week_start": "", "total_revenue": "Revenue ($)"},
         color_discrete_sequence=[PALETTE["blue"]],
     )
     fig.update_traces(fillcolor="rgba(41,128,185,0.12)", line_color=PALETTE["blue"])
@@ -138,7 +138,7 @@ if page == "Executive Overview":
         fig = px.bar(
             seg, x="total_revenue", y="customer_segment", orientation="h",
             title="Revenue by Customer Segment",
-            labels={"total_revenue": "Revenue (£)", "customer_segment": ""},
+            labels={"total_revenue": "Revenue ($)", "customer_segment": ""},
             color_discrete_sequence=[PALETTE["green"]],
         )
         fig.update_layout(showlegend=False)
@@ -154,7 +154,7 @@ if page == "Executive Overview":
         fig = px.bar(
             ch, x="total_revenue", y="sales_channel", orientation="h",
             title="Revenue by Sales Channel",
-            labels={"total_revenue": "Revenue (£)", "sales_channel": ""},
+            labels={"total_revenue": "Revenue ($)", "sales_channel": ""},
             color_discrete_sequence=[PALETTE["blue"]],
         )
         fig.update_layout(showlegend=False)
@@ -186,7 +186,7 @@ elif page == "Weekly KPI Tracking":
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=wk["week_start"], y=wk["total_revenue"],
-            name="Revenue (£)", line=dict(color=PALETTE["blue"], width=2),
+            name="Revenue ($)", line=dict(color=PALETTE["blue"], width=2),
             yaxis="y1",
         ))
         fig.add_trace(go.Bar(
@@ -197,7 +197,7 @@ elif page == "Weekly KPI Tracking":
         fig.update_layout(
             title="Revenue & WoW Growth",
             hovermode="x unified",
-            yaxis=dict(title="Revenue (£)"),
+            yaxis=dict(title="Revenue ($)"),
             yaxis2=dict(title="WoW Growth (%)", overlaying="y", side="right"),
             legend=dict(orientation="h", yanchor="bottom", y=1.02),
         )
@@ -261,7 +261,7 @@ elif page == "Product & Category":
         fig = px.bar(
             cat_rev, x="total_revenue", y="product_category", orientation="h",
             title="Revenue by Category",
-            labels={"total_revenue": "Revenue (£)", "product_category": ""},
+            labels={"total_revenue": "Revenue ($)", "product_category": ""},
             color_discrete_sequence=[PALETTE["blue"]],
         )
         fig.update_layout(showlegend=False)
@@ -384,7 +384,7 @@ elif page == "Customer & Segment":
         title="Churn Risk Probability vs Customer Revenue",
         labels={
             "churn_risk_probability": "Churn Risk Probability",
-            "total_revenue": "Total Revenue (£)",
+            "total_revenue": "Total Revenue ($)",
             "risk_level": "Risk Level",
         },
     )
@@ -446,7 +446,7 @@ elif page == "Predictive Insights":
     fig.update_layout(
         title="Revenue Forecast",
         hovermode="x unified",
-        xaxis_title="", yaxis_title="Revenue (£)",
+        xaxis_title="", yaxis_title="Revenue ($)",
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
     )
     st.plotly_chart(fig, use_container_width=True)
