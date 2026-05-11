@@ -23,21 +23,33 @@ PALETTE = {
     "purple": "#8E44AD",
     "red":    "#C0392B",
     "orange": "#E67E22",
+    "amber":  "#F39C12",
 }
+
+PAGES = [
+    "Executive Overview",
+    "Weekly KPI Tracking",
+    "Product & Category",
+    "Customer & Segment",
+    "Predictive Insights",
+]
 
 
 @st.cache_data
 def load():
     return {
-        "orders":   pd.read_csv(DATA / "fact_orders.csv",
-                                parse_dates=["order_date", "week_start"]),
-        "weekly":   pd.read_csv(DATA / "weekly_kpis.csv",
-                                parse_dates=["week_start"]),
-        "forecast": pd.read_csv(DATA / "sales_forecast.csv",
-                                parse_dates=["week_start"]),
-        "churn":    pd.read_csv(DATA / "customer_churn_risk.csv"),
-        "demand":   pd.read_csv(DATA / "product_demand_predictions.csv",
-                                parse_dates=["week"]),
+        "orders":    pd.read_csv(DATA / "fact_orders.csv",
+                                 parse_dates=["order_date", "week_start"]),
+        "weekly":    pd.read_csv(DATA / "weekly_kpis.csv",
+                                 parse_dates=["week_start"]),
+        "forecast":  pd.read_csv(DATA / "sales_forecast.csv",
+                                 parse_dates=["week_start"]),
+        "churn":     pd.read_csv(DATA / "customer_churn_risk.csv"),
+        "demand":    pd.read_csv(DATA / "product_demand_predictions.csv",
+                                 parse_dates=["week"]),
+        "segments":   pd.read_csv(DATA / "segment_performance.csv"),
+        "campaigns":  pd.read_csv(DATA / "campaign_performance.csv"),
+        "customers":  pd.read_csv(DATA / "dim_customers.csv"),
     }
 
 
@@ -46,11 +58,7 @@ data = load()
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.title("Digital Commerce")
-    page = st.radio(
-        "Navigate",
-        ["Executive Overview", "Predictive Insights"],
-        label_visibility="collapsed",
-    )
+    page = st.radio("Navigate", PAGES, label_visibility="collapsed")
     st.divider()
     years = sorted(data["orders"]["order_date"].dt.year.unique())
     sel_years = st.multiselect("Filter by year", years, default=years)
@@ -92,18 +100,16 @@ if page == "Executive Overview":
     last = weekly.sort_values("week_start").iloc[-1] if len(weekly) > 1 else None
     rev_delta = (
         f"{last['revenue_wow_growth'] * 100:+.1f}% WoW"
-        if last is not None and pd.notna(last["revenue_wow_growth"])
-        else None
+        if last is not None and pd.notna(last["revenue_wow_growth"]) else None
     )
     ord_delta = (
         f"{last['orders_wow_growth'] * 100:+.1f}% WoW"
-        if last is not None and pd.notna(last["orders_wow_growth"])
-        else None
+        if last is not None and pd.notna(last["orders_wow_growth"]) else None
     )
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Total Revenue",    _gbp(total_rev),   delta=rev_delta)
-    c2.metric("Total Orders",     f"{total_ord:,}",   delta=ord_delta)
+    c1.metric("Total Revenue",    _gbp(total_rev),  delta=rev_delta)
+    c2.metric("Total Orders",     f"{total_ord:,}",  delta=ord_delta)
     c3.metric("Avg Order Value",  _gbp(aov))
     c4.metric("Gross Margin",     _pct(gm_pct))
     c5.metric("Active Customers", f"{active_cust:,}")
@@ -122,7 +128,6 @@ if page == "Executive Overview":
     st.plotly_chart(fig, use_container_width=True)
 
     col1, col2 = st.columns(2)
-
     with col1:
         seg = (
             completed.groupby("customer_segment")["revenue"]
@@ -157,24 +162,254 @@ if page == "Executive Overview":
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PAGE 2 — PREDICTIVE INSIGHTS
+# PAGE 2 — WEEKLY KPI TRACKING
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-else:
+elif page == "Weekly KPI Tracking":
+    st.header("Weekly KPI Tracking")
+
+    wk = weekly.sort_values("week_start")
+
+    conv_rate  = wk["completed_orders"].sum() / wk["visits"].sum() if wk["visits"].sum() else 0
+    abandon    = 1 - wk["completed_orders"].sum() / wk["cart_additions"].sum() if wk["cart_additions"].sum() else 0
+    avg_disc   = completed["discount"].mean()
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Conversion Rate",       _pct(conv_rate))
+    c2.metric("Cart Abandonment Rate", _pct(abandon))
+    c3.metric("Avg Discount",          _pct(avg_disc))
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=wk["week_start"], y=wk["total_revenue"],
+            name="Revenue (£)", line=dict(color=PALETTE["blue"], width=2),
+            yaxis="y1",
+        ))
+        fig.add_trace(go.Bar(
+            x=wk["week_start"], y=wk["revenue_wow_growth"] * 100,
+            name="WoW Growth (%)", marker_color=PALETTE["amber"],
+            opacity=0.6, yaxis="y2",
+        ))
+        fig.update_layout(
+            title="Revenue & WoW Growth",
+            hovermode="x unified",
+            yaxis=dict(title="Revenue (£)"),
+            yaxis2=dict(title="WoW Growth (%)", overlaying="y", side="right"),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=wk["week_start"], y=wk["total_orders"],
+            name="Orders", line=dict(color=PALETTE["green"], width=2),
+            yaxis="y1",
+        ))
+        fig.add_trace(go.Bar(
+            x=wk["week_start"], y=wk["orders_wow_growth"] * 100,
+            name="WoW Growth (%)", marker_color=PALETTE["amber"],
+            opacity=0.6, yaxis="y2",
+        ))
+        fig.update_layout(
+            title="Orders & WoW Growth",
+            hovermode="x unified",
+            yaxis=dict(title="Orders"),
+            yaxis2=dict(title="WoW Growth (%)", overlaying="y", side="right"),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=wk["week_start"], y=wk["new_customers"],
+        name="New Customers", marker_color=PALETTE["blue"],
+    ))
+    fig.add_trace(go.Bar(
+        x=wk["week_start"], y=wk["repeat_customers"],
+        name="Repeat Customers", marker_color=PALETTE["green"],
+    ))
+    fig.update_layout(
+        title="New vs Repeat Customers by Week",
+        barmode="group",
+        hovermode="x unified",
+        xaxis_title="", yaxis_title="Customers",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PAGE 3 — PRODUCT & CATEGORY
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+elif page == "Product & Category":
+    st.header("Product & Category Analysis")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        cat_rev = (
+            completed.groupby("product_category")["revenue"]
+            .sum().reset_index()
+            .rename(columns={"revenue": "total_revenue"})
+            .sort_values("total_revenue")
+        )
+        fig = px.bar(
+            cat_rev, x="total_revenue", y="product_category", orientation="h",
+            title="Revenue by Category",
+            labels={"total_revenue": "Revenue (£)", "product_category": ""},
+            color_discrete_sequence=[PALETTE["blue"]],
+        )
+        fig.update_layout(showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        demand = data["demand"].copy()
+        latest = (
+            demand.sort_values("week")
+            .groupby("product_category")
+            .last()
+            .reset_index()
+            .sort_values("actual_units_sold")
+        )
+        fig = px.bar(
+            latest,
+            x="actual_units_sold", y="product_category", orientation="h",
+            title="Units Sold by Category (Latest Week)",
+            labels={"actual_units_sold": "Units Sold", "product_category": ""},
+            color="demand_trend",
+            color_discrete_map={
+                "Increasing": PALETTE["green"],
+                "Stable":     PALETTE["blue"],
+                "Decreasing": PALETTE["red"],
+            },
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    cat_filter = st.selectbox(
+        "Select category",
+        sorted(demand["product_category"].unique()),
+    )
+    cat_data = demand[demand["product_category"] == cat_filter].sort_values("week")
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=cat_data["week"], y=cat_data["actual_units_sold"],
+        name="Actual Units", line=dict(color=PALETTE["blue"], width=2),
+    ))
+    fig.add_trace(go.Scatter(
+        x=cat_data["week"], y=cat_data["predicted_units_sold"],
+        name="Predicted Units", line=dict(color=PALETTE["purple"], dash="dot", width=1.5),
+    ))
+    fig.update_layout(
+        title=f"Actual vs Predicted Units — {cat_filter}",
+        hovermode="x unified",
+        xaxis_title="", yaxis_title="Units Sold",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PAGE 4 — CUSTOMER & SEGMENT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+elif page == "Customer & Segment":
+    st.header("Customer & Segment Analysis")
+
+    churn      = data["churn"].copy()
+    high_risk  = (churn["risk_level"] == "High").sum()
+    churn_rate = high_risk / len(churn)
+    dim_cust    = data["customers"]
+    repeat_cust = (dim_cust["is_repeat_customer"] == True).sum()
+    repeat_rate = repeat_cust / len(dim_cust) if len(dim_cust) else 0
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("High Churn Risk Customers", f"{high_risk:,}",
+              delta=f"{churn_rate * 100:.0f}% of base", delta_color="inverse")
+    c2.metric("Repeat Customers", f"{repeat_cust:,}")
+    c3.metric("Repeat Customer Rate", _pct(repeat_rate))
+
+    st.divider()
+    col1, col2 = st.columns(2)
+
+    with col1:
+        seg_rev = (
+            completed.groupby("customer_segment")["revenue"]
+            .sum().reset_index()
+            .rename(columns={"revenue": "total_revenue"})
+        )
+        fig = px.pie(
+            seg_rev, values="total_revenue", names="customer_segment",
+            title="Revenue Share by Segment",
+            color_discrete_sequence=[
+                PALETTE["blue"], PALETTE["green"],
+                PALETTE["purple"], PALETTE["orange"],
+            ],
+            hole=0.4,
+        )
+        fig.update_traces(textposition="inside", textinfo="percent+label")
+        fig.update_layout(showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        seg_tbl = data["segments"][
+            ["customer_segment", "total_revenue", "total_orders",
+             "avg_order_value", "repeat_rate"]
+        ].copy()
+        seg_tbl["total_revenue"]  = seg_tbl["total_revenue"].map(lambda v: _gbp(v))
+        seg_tbl["avg_order_value"]= seg_tbl["avg_order_value"].map(lambda v: _gbp(v))
+        seg_tbl["repeat_rate"]    = seg_tbl["repeat_rate"].map(lambda v: _pct(v))
+        seg_tbl.columns = ["Segment", "Revenue", "Orders", "AOV", "Repeat Rate"]
+        st.markdown("**Segment Metrics**")
+        st.dataframe(seg_tbl, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+    fig = px.scatter(
+        churn,
+        x="churn_risk_probability", y="total_revenue",
+        color="risk_level",
+        color_discrete_map={
+            "Low":    PALETTE["green"],
+            "Medium": PALETTE["orange"],
+            "High":   PALETTE["red"],
+        },
+        hover_data=["customer_id", "customer_segment", "purchase_frequency"],
+        title="Churn Risk Probability vs Customer Revenue",
+        labels={
+            "churn_risk_probability": "Churn Risk Probability",
+            "total_revenue": "Total Revenue (£)",
+            "risk_level": "Risk Level",
+        },
+    )
+    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02))
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PAGE 5 — PREDICTIVE INSIGHTS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+elif page == "Predictive Insights":
     st.header("Predictive Insights")
 
     forecast = data["forecast"].copy()
     actuals  = forecast[forecast["is_future"] == False]
     future   = forecast[forecast["is_future"] == True]
 
-    pred_rev  = future["predicted_revenue"].sum()
-    high_risk = (data["churn"]["risk_level"] == "High").sum()
+    pred_rev   = future["predicted_revenue"].sum()
+    high_risk  = (data["churn"]["risk_level"] == "High").sum()
     churn_rate = high_risk / len(data["churn"])
 
     c1, c2 = st.columns(2)
     c1.metric("Predicted Revenue (next 4 weeks)", _gbp(pred_rev))
     c2.metric(
-        "High Churn Risk Customers",
-        f"{high_risk:,}",
+        "High Churn Risk Customers", f"{high_risk:,}",
         delta=f"{churn_rate * 100:.0f}% of customer base",
         delta_color="inverse",
     )
