@@ -75,14 +75,14 @@ weekly    = data["weekly"][data["weekly"]["week_start"].dt.year.isin(sel_years)]
 
 def _gbp(v: float) -> str:
     if v >= 1_000_000:
-        return f"£{v / 1_000_000:.1f}M"
+        return f"£{v / 1_000_000:.2f}M"
     if v >= 1_000:
-        return f"£{v / 1_000:.0f}K"
-    return f"£{v:.0f}"
+        return f"£{v / 1_000:.2f}K"
+    return f"£{v:.2f}"
 
 
 def _pct(v: float) -> str:
-    return f"{v * 100:.1f}%"
+    return f"{v * 100:.2f}%"
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
