@@ -90,9 +90,8 @@ New Customers = SUM(weekly_kpis[new_customers])
 
 Repeat Customers =
 CALCULATE(
-    DISTINCTCOUNT(fact_orders[customer_id]),
-    fact_orders[is_completed] = TRUE(),
-    RELATED(dim_customers[is_repeat_customer]) = TRUE()
+    COUNTROWS(dim_customers),
+    dim_customers[purchase_frequency] >= 2
 )
 
 Repeat Customer Rate = DIVIDE([Repeat Customers], [Active Customers], 0)
@@ -118,20 +117,16 @@ Cart Abandonment Rate =
 
 ### Week-over-Week Growth
 
+> These measures read the pre-calculated `revenue_wow_growth` and `orders_wow_growth` columns
+> from `weekly_kpis` (computed in Python). This avoids date arithmetic that Power BI cannot
+> resolve reliably against stored week-start dates.
+
 ```dax
 WoW Revenue Growth =
-VAR CurrentWeek = MAX(weekly_kpis[week_start])
-VAR PrevWeek    = CurrentWeek - 7
-VAR ThisRev     = CALCULATE(SUM(weekly_kpis[total_revenue]), weekly_kpis[week_start] = CurrentWeek)
-VAR PrevRev     = CALCULATE(SUM(weekly_kpis[total_revenue]), weekly_kpis[week_start] = PrevWeek)
-RETURN DIVIDE(ThisRev - PrevRev, PrevRev, 0)
+LASTNONBLANKVALUE(weekly_kpis[week_start], AVERAGE(weekly_kpis[revenue_wow_growth]))
 
 WoW Orders Growth =
-VAR CurrentWeek = MAX(weekly_kpis[week_start])
-VAR PrevWeek    = CurrentWeek - 7
-VAR ThisOrd     = CALCULATE(SUM(weekly_kpis[total_orders]), weekly_kpis[week_start] = CurrentWeek)
-VAR PrevOrd     = CALCULATE(SUM(weekly_kpis[total_orders]), weekly_kpis[week_start] = PrevWeek)
-RETURN DIVIDE(ThisOrd - PrevOrd, PrevOrd, 0)
+LASTNONBLANKVALUE(weekly_kpis[week_start], AVERAGE(weekly_kpis[orders_wow_growth]))
 ```
 
 ### Predictions
@@ -153,7 +148,12 @@ DIVIDE(
 High Risk Customers =
 CALCULATE(COUNTROWS(customer_churn_risk), customer_churn_risk[risk_level] = "High")
 
-Churn Risk Rate = DIVIDE([High Risk Customers], COUNTROWS(customer_churn_risk), 0)
+Churn Risk Rate =
+DIVIDE(
+    CALCULATE(COUNTROWS(customer_churn_risk), customer_churn_risk[risk_level] = "High"),
+    CALCULATE(COUNTROWS(customer_churn_risk), ALL(customer_churn_risk[risk_level])),
+    0
+)
 
 Increasing Demand Categories =
 CALCULATE(
@@ -164,7 +164,7 @@ CALCULATE(
 
 ---
 
-## 4. Dashboard Pages (6 pages)
+## 4. Dashboard Pages (5 pages)
 
 ### Page 1 — Executive Overview
 **Purpose:** Single-glance KPI summary for leadership
@@ -229,8 +229,8 @@ Visuals:
 
 ---
 
-### Page 6 — Model Performance
-**Purpose:** ML model accuracy for technical/data stakeholders
+### Page 6 — Model Performance *(optional)*
+**Purpose:** ML model accuracy for technical/data stakeholders. Skip this page for a business-facing dashboard; the `model_performance.csv` data is still available if needed.
 
 Visuals:
 - Matrix or table: model_performance filtered by metric_type = "Regression"

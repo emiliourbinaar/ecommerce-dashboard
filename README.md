@@ -129,7 +129,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-This generates ~11,700 synthetic orders across 14 months, cleans them, engineers features, calculates KPIs, trains 3 ML models, and exports 12 CSV files to `data/powerbi/`.
+This generates ~12,000 synthetic orders across 14 months, cleans them, engineers features, calculates KPIs, trains 3 ML models, and exports 12 CSV files to `data/powerbi/`.
 
 ### 3. Re-run without regenerating data
 
@@ -178,7 +178,7 @@ A completed export of the Power BI report is available as `ecommerce_dashboard.p
 
 | File | Rows (approx.) | Purpose |
 |------|---------------|---------|
-| `fact_orders.csv` | ~11,700 | Main transaction fact table |
+| `fact_orders.csv` | ~12,000 | Main transaction fact table |
 | `dim_customers.csv` | ~490 | Customer master with RFM attributes |
 | `dim_products.csv` | 80 | Product master |
 | `dim_date.csv` | ~466 | Date dimension (day-level, with week/month/quarter) |
