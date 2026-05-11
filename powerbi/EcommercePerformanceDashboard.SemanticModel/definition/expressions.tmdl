@@ -1,3 +1,5 @@
-/// Update this path to point to your data/powerbi/ folder (use double backslashes)
+// DataFolderPath — REQUIRED SETUP
+// Set this to the absolute path of your local data/powerbi/ folder.
+// Use double backslashes and include a trailing backslash.
+// Example: "C:\\Users\\yourname\\projects\\dashboard\\data\\powerbi\\"
 expression DataFolderPath = "C:\\Users\\emili\\GitHub\\Real-time ecommerce dashboard\\data\\powerbi\\" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
-

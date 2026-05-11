@@ -14,7 +14,7 @@ RANDOM_SEED       = 42
 N_CUSTOMERS       = 500
 N_PRODUCTS        = 80
 MONTHS_OF_DATA    = 14          # slightly more than 12 for richer history
-START_DATE        = "2024-01-01"
+START_DATE        = "2025-03-01"
 
 # ── Business rules ───────────────────────────────────────────────────────────
 CHURN_INACTIVE_DAYS = 60        # customer considered at-risk after 60 days

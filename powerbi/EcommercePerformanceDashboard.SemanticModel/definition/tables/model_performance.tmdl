@@ -2,7 +2,6 @@ table model_performance
 
 	column model
 		dataType: string
-		isKey
 		summarizeBy: none
 		sourceColumn: model
 
@@ -21,41 +20,16 @@ table model_performance
 		summarizeBy: none
 		sourceColumn: metric_type
 
-	column MAE
-		dataType: double
-		formatString: #,0.00
+	column metric_name
+		dataType: string
 		summarizeBy: none
-		sourceColumn: MAE
+		sourceColumn: metric_name
 
-	column RMSE
-		dataType: double
-		formatString: #,0.00
-		summarizeBy: none
-		sourceColumn: RMSE
-
-	column MAPE_pct
-		dataType: double
-		formatString: 0.00
-		summarizeBy: none
-		sourceColumn: MAPE_pct
-
-	column Accuracy
-		dataType: double
-		formatString: 0.00%
-		summarizeBy: none
-		sourceColumn: Accuracy
-
-	column F1
+	column metric_value
 		dataType: double
 		formatString: 0.0000
 		summarizeBy: none
-		sourceColumn: F1
-
-	column ROC_AUC
-		dataType: double
-		formatString: 0.0000
-		summarizeBy: none
-		sourceColumn: ROC_AUC
+		sourceColumn: metric_value
 
 	partition model_performance-model_performance = m
 		mode: import
@@ -71,15 +45,10 @@ table model_performance
 				        {"algorithm", type text},
 				        {"target", type text},
 				        {"metric_type", type text},
-				        {"MAE", type number},
-				        {"RMSE", type number},
-				        {"MAPE_pct", type number},
-				        {"Accuracy", type number},
-				        {"F1", type number},
-				        {"ROC_AUC", type number}
+				        {"metric_name", type text},
+				        {"metric_value", type number}
 				    })
 				in
 				    #"Changed Type"
 
 	annotation PBI_ResultType = Table
-

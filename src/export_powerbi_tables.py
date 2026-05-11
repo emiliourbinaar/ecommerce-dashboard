@@ -37,14 +37,22 @@ def build_segment_performance(df: pd.DataFrame) -> pd.DataFrame:
             unique_customers=("customer_id", "nunique"),
             avg_order_value= ("revenue",     "mean"),
             total_margin=    ("margin",      "sum"),
-            repeat_customers=("is_repeat_customer", "sum"),
         )
         .reset_index()
     )
-    seg["gross_margin_pct"]   = (seg["total_margin"] / seg["total_revenue"]).round(4)
-    seg["repeat_rate"]        = (seg["repeat_customers"] /
-                                  seg["unique_customers"]).round(4)
-    seg["avg_order_value"]    = seg["avg_order_value"].round(2)
+    # Count unique customers flagged as repeat per segment (not sum of order rows)
+    repeat = (
+        completed[completed["is_repeat_customer"]]
+        .groupby("customer_segment")["customer_id"]
+        .nunique()
+        .reset_index()
+        .rename(columns={"customer_id": "repeat_customers"})
+    )
+    seg = seg.merge(repeat, on="customer_segment", how="left")
+    seg["repeat_customers"] = seg["repeat_customers"].fillna(0).astype(int)
+    seg["gross_margin_pct"] = (seg["total_margin"] / seg["total_revenue"]).round(4)
+    seg["repeat_rate"]      = (seg["repeat_customers"] / seg["unique_customers"]).round(4)
+    seg["avg_order_value"]  = seg["avg_order_value"].round(2)
     return seg.sort_values("total_revenue", ascending=False)
 
 
@@ -60,12 +68,12 @@ def run() -> None:
         tbl.to_csv(DATA_POWERBI / f"{name}.csv", index=False)
         print(f"  Saved: data/powerbi/{name}.csv  ({len(tbl):,} rows)")
 
-    # Verify all expected files exist
     expected = [
-        "fact_orders", "dim_customers", "dim_products", "weekly_kpis",
-        "campaign_performance", "sales_channel_performance", "segment_performance",
-        "sales_forecast", "customer_churn_risk", "product_demand_predictions",
-        "model_performance",
+        "fact_orders", "dim_customers", "dim_products", "dim_date",
+        "weekly_kpis", "campaign_performance",
+        "sales_channel_performance", "segment_performance",
+        "sales_forecast", "customer_churn_risk",
+        "product_demand_predictions", "model_performance",
     ]
     print("\n  Power BI export manifest:")
     for name in expected:

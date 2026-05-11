@@ -31,18 +31,24 @@ def build_dim_customers(df: pd.DataFrame) -> pd.DataFrame:
     cust = (
         df.groupby("customer_id")
         .agg(
-            customer_segment=  ("customer_segment",        "first"),
-            city=              ("city",                    "first"),
-            customer_signup_date=("customer_signup_date",  "first"),
+            customer_segment=    ("customer_segment",        "first"),
+            city=                ("city",                    "first"),
+            customer_signup_date=("customer_signup_date",    "first"),
             days_since_last_purchase=("days_since_last_purchase", "first"),
-            purchase_frequency=("purchase_frequency",      "first"),
-            total_revenue=     ("total_revenue",           "first"),
-            avg_order_value=   ("avg_order_value",         "first"),
-            is_repeat_customer=("is_repeat_customer",      "first"),
-            is_churned=        ("is_churned",              "first"),
+            purchase_frequency=  ("purchase_frequency",      "first"),
+            total_revenue=       ("total_revenue",           "first"),
+            avg_order_value=     ("avg_order_value",         "first"),
+            is_repeat_customer=  ("is_repeat_customer",      "first"),
+            is_churned=          ("is_churned",              "first"),
         )
         .reset_index()
     )
+    for col in ["days_since_last_purchase", "purchase_frequency", "total_revenue", "avg_order_value"]:
+        if col in cust.columns:
+            cust[col] = cust[col].fillna(0)
+    for col in ["is_repeat_customer", "is_churned"]:
+        if col in cust.columns:
+            cust[col] = cust[col].fillna(False)
     return cust
 
 
@@ -58,6 +64,27 @@ def build_dim_products(df: pd.DataFrame) -> pd.DataFrame:
     )
     prod["unit_price"] = prod["unit_price"].round(2)
     return prod
+
+
+def build_dim_date(df: pd.DataFrame) -> pd.DataFrame:
+    """Date dimension covering the full order history plus 4-week forecast buffer."""
+    min_date = pd.to_datetime(df["order_date"].min())
+    max_date = pd.to_datetime(df["order_date"].max()) + pd.Timedelta(weeks=6)
+
+    dates = pd.date_range(start=min_date, end=max_date, freq="D")
+    dim = pd.DataFrame({"date": dates})
+
+    dim["week_start"]   = dim["date"].dt.to_period("W").apply(lambda p: p.start_time)
+    dim["year"]         = dim["date"].dt.year
+    dim["quarter"]      = dim["date"].dt.quarter
+    dim["month"]        = dim["date"].dt.month
+    dim["month_name"]   = dim["date"].dt.strftime("%B")
+    dim["week_number"]  = dim["date"].dt.isocalendar().week.astype(int)
+    dim["year_week"]    = dim["date"].dt.strftime("%G-W%V")
+
+    dim["date"]       = dim["date"].dt.date
+    dim["week_start"] = pd.to_datetime(dim["week_start"]).dt.date
+    return dim
 
 
 def build_weekly_kpis(df: pd.DataFrame) -> pd.DataFrame:
@@ -87,11 +114,9 @@ def build_weekly_kpis(df: pd.DataFrame) -> pd.DataFrame:
     wk["cart_abandonment_rate"] = (1 - wk["completed_orders"] /
                                     wk["cart_additions"].replace(0, np.nan)).clip(0, 1).round(4)
 
-    # Week-over-week growth
     wk["revenue_wow_growth"] = _pct_change(wk["total_revenue"])
     wk["orders_wow_growth"]  = _pct_change(wk["total_orders"])
 
-    # New customers: signed up in this week
     new_cust = (
         df.groupby(df["customer_signup_date"].dt.to_period("W")
                      .apply(lambda p: p.start_time))
@@ -104,7 +129,6 @@ def build_weekly_kpis(df: pd.DataFrame) -> pd.DataFrame:
     wk = wk.merge(new_cust, on="week_start", how="left")
     wk["new_customers"] = wk["new_customers"].fillna(0).astype(int)
 
-    # Repeat customers in the week
     repeat = (
         completed[completed["is_repeat_customer"]]
         .groupby("week_start")["customer_id"]
@@ -151,6 +175,7 @@ def run() -> dict:
         "fact_orders":          build_fact_orders(df),
         "dim_customers":        build_dim_customers(df),
         "dim_products":         build_dim_products(df),
+        "dim_date":             build_dim_date(df),
         "weekly_kpis":          build_weekly_kpis(df),
         "campaign_performance": build_campaign_performance(df),
     }

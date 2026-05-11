@@ -1,4 +1,9 @@
-model,algorithm,target,metric_type,MAE,RMSE,MAPE_pct,Accuracy,F1,ROC_AUC
-Sales Forecast,GradientBoosting,weekly_revenue,Regression,5241.48,15348.08,2.44,,,
-Customer Churn Risk,LogisticRegression,is_churned,Classification,,,,0.9979,0.9863,1.0
-Product Demand,RandomForest,weekly_units_by_category,Regression,10.37,13.41,,,,
+model,algorithm,target,metric_type,metric_name,metric_value
+Sales Forecast,GradientBoosting,weekly_revenue,Regression,MAE,5459.8113
+Sales Forecast,GradientBoosting,weekly_revenue,Regression,RMSE,17475.1656
+Sales Forecast,GradientBoosting,weekly_revenue,Regression,MAPE_pct,2.2297
+Customer Churn Risk,LogisticRegression,is_churned,Classification,Accuracy,0.9979
+Customer Churn Risk,LogisticRegression,is_churned,Classification,F1,0.9767
+Customer Churn Risk,LogisticRegression,is_churned,Classification,ROC_AUC,0.9999
+Product Demand,RandomForest,weekly_units_by_category,Regression,MAE,9.6984
+Product Demand,RandomForest,weekly_units_by_category,Regression,RMSE,13.3988

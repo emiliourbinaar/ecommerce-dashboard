@@ -5,6 +5,7 @@ model Model
 ref table campaign_performance
 ref table customer_churn_risk
 ref table dim_customers
+ref table dim_date
 ref table dim_products
 ref table fact_orders
 ref table model_performance
@@ -14,4 +15,3 @@ ref table sales_forecast
 ref table segment_performance
 ref table weekly_kpis
 ref table _Measures
-

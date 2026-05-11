@@ -1,73 +1,64 @@
-# Power BI Data Model & Dashboard Plan
+# Power BI Dashboard Plan
 ### Digital Commerce Performance Dashboard
 
----
-
-## 1. Tables to Load into Power BI
-
-| File | Type | Description |
-|------|------|-------------|
-| `fact_orders.csv` | Fact | One row per order transaction |
-| `dim_customers.csv` | Dimension | One row per customer with RFM features |
-| `dim_products.csv` | Dimension | One row per product |
-| `weekly_kpis.csv` | Aggregate | Pre-calculated weekly KPIs |
-| `campaign_performance.csv` | Aggregate | Revenue & orders by campaign |
-| `sales_channel_performance.csv` | Aggregate | Revenue & orders by sales channel |
-| `segment_performance.csv` | Aggregate | Revenue & orders by customer segment |
-| `sales_forecast.csv` | ML Output | Actual vs predicted weekly revenue |
-| `customer_churn_risk.csv` | ML Output | Churn probability per customer |
-| `product_demand_predictions.csv` | ML Output | Demand trend by category |
-| `model_performance.csv` | ML Metadata | Model metrics summary |
+> **How to build this dashboard**
+> 1. Run `python main.py` to generate all CSVs in `data/powerbi/`
+> 2. Open Power BI Desktop → new blank report
+> 3. Import all 12 CSV files from `data/powerbi/`
+> 4. Create relationships manually in Model view (see Section 2)
+> 5. Create DAX measures (see Section 3)
+> 6. Build visuals page by page (see Section 4)
+>
+> Do **not** try to open the PBIP files in `powerbi/` as a report — the SemanticModel folder
+> is a schema reference only. Build your report directly from the CSV imports.
 
 ---
 
-## 2. Recommended Relationships
+## 1. Tables to Import
+
+| File | Type | Key column(s) |
+|------|------|---------------|
+| `fact_orders.csv` | Fact | `order_id` |
+| `dim_customers.csv` | Dimension | `customer_id` |
+| `dim_products.csv` | Dimension | `product_id` |
+| `dim_date.csv` | Date dimension | `date` |
+| `weekly_kpis.csv` | Weekly aggregate | `week_start` |
+| `campaign_performance.csv` | Aggregate | `campaign_name` |
+| `sales_channel_performance.csv` | Aggregate | `sales_channel` |
+| `segment_performance.csv` | Aggregate | `customer_segment` |
+| `sales_forecast.csv` | ML output | `week_start` — filter on `is_future` |
+| `customer_churn_risk.csv` | ML output | `customer_id` |
+| `product_demand_predictions.csv` | ML output | `(product_category, week)` |
+| `model_performance.csv` | ML metadata | `(model, metric_name)` — long format |
+
+---
+
+## 2. Relationships to Create in Model View
 
 ```
-fact_orders[customer_id]   → dim_customers[customer_id]   (Many-to-One)
-fact_orders[product_id]    → dim_products[product_id]     (Many-to-One)
-fact_orders[week_start]    → weekly_kpis[week_start]      (Many-to-One)
-customer_churn_risk[customer_id] → dim_customers[customer_id] (One-to-One)
+fact_orders[customer_id]         → dim_customers[customer_id]   Many-to-One  *
+fact_orders[product_id]          → dim_products[product_id]     Many-to-One  *
+fact_orders[order_date]          → dim_date[date]               Many-to-One
+customer_churn_risk[customer_id] → dim_customers[customer_id]   Many-to-One
 ```
 
-> **Note:** `weekly_kpis`, `campaign_performance`, `sales_channel_performance`,
-> `segment_performance`, `sales_forecast`, and `product_demand_predictions`
-> are standalone aggregate tables — connect them via shared key columns only
-> where needed. Avoid circular dependencies.
+`*` = active relationship (cross-filter direction: Single)
+
+The aggregate tables (`weekly_kpis`, `campaign_performance`, `sales_channel_performance`,
+`segment_performance`, `sales_forecast`, `product_demand_predictions`, `model_performance`)
+are standalone — connect them only if you need a slicer to filter across tables.
 
 ---
 
-## 3. Primary Keys & Foreign Keys
+## 3. DAX Measures
 
-| Table | Primary Key | Foreign Key(s) |
-|-------|-------------|----------------|
-| `fact_orders` | `order_id` | `customer_id`, `product_id` |
-| `dim_customers` | `customer_id` | — |
-| `dim_products` | `product_id` | — |
-| `weekly_kpis` | `week_start` | — |
-| `campaign_performance` | `campaign_name` | — |
-| `sales_channel_performance` | `sales_channel` | — |
-| `segment_performance` | `customer_segment` | — |
-| `sales_forecast` | `week_start` | — |
-| `customer_churn_risk` | `customer_id` | `customer_id → dim_customers` |
-| `product_demand_predictions` | (`product_category`, `week`) | — |
-| `model_performance` | `model` | — |
+Create these in a dedicated hidden table (New Table → `_Measures`, set IsHidden = true).
 
----
-
-## 4. DAX Measures (copy-paste ready)
-
-### Core KPIs
+### Revenue
 
 ```dax
 Total Revenue =
 CALCULATE(SUM(fact_orders[revenue]), fact_orders[is_completed] = TRUE())
-
-Total Orders =
-CALCULATE(COUNTROWS(fact_orders), fact_orders[is_completed] = TRUE())
-
-Average Order Value =
-DIVIDE([Total Revenue], [Total Orders], 0)
 
 Gross Margin =
 CALCULATE(SUM(fact_orders[margin]), fact_orders[is_completed] = TRUE())
@@ -75,19 +66,27 @@ CALCULATE(SUM(fact_orders[margin]), fact_orders[is_completed] = TRUE())
 Gross Margin % =
 DIVIDE([Gross Margin], [Total Revenue], 0)
 
+Average Order Value =
+DIVIDE([Total Revenue], [Total Orders], 0)
+```
+
+### Orders & Units
+
+```dax
+Total Orders =
+CALCULATE(COUNTROWS(fact_orders), fact_orders[is_completed] = TRUE())
+
 Units Sold =
 CALCULATE(SUM(fact_orders[quantity]), fact_orders[is_completed] = TRUE())
 ```
 
-### Customer Metrics
+### Customers
 
 ```dax
 Active Customers =
-CALCULATE(DISTINCTCOUNT(fact_orders[customer_id]),
-          fact_orders[is_completed] = TRUE())
+CALCULATE(DISTINCTCOUNT(fact_orders[customer_id]), fact_orders[is_completed] = TRUE())
 
-New Customers =
-SUM(weekly_kpis[new_customers])
+New Customers = SUM(weekly_kpis[new_customers])
 
 Repeat Customers =
 CALCULATE(
@@ -96,11 +95,10 @@ CALCULATE(
     RELATED(dim_customers[is_repeat_customer]) = TRUE()
 )
 
-Repeat Customer Rate =
-DIVIDE([Repeat Customers], [Active Customers], 0)
+Repeat Customer Rate = DIVIDE([Repeat Customers], [Active Customers], 0)
 ```
 
-### Funnel Metrics
+### Funnel
 
 ```dax
 Conversion Rate =
@@ -124,30 +122,28 @@ Cart Abandonment Rate =
 WoW Revenue Growth =
 VAR CurrentWeek = MAX(weekly_kpis[week_start])
 VAR PrevWeek    = CurrentWeek - 7
-VAR ThisRev = CALCULATE(SUM(weekly_kpis[total_revenue]),
-                        weekly_kpis[week_start] = CurrentWeek)
-VAR PrevRev = CALCULATE(SUM(weekly_kpis[total_revenue]),
-                        weekly_kpis[week_start] = PrevWeek)
+VAR ThisRev     = CALCULATE(SUM(weekly_kpis[total_revenue]), weekly_kpis[week_start] = CurrentWeek)
+VAR PrevRev     = CALCULATE(SUM(weekly_kpis[total_revenue]), weekly_kpis[week_start] = PrevWeek)
 RETURN DIVIDE(ThisRev - PrevRev, PrevRev, 0)
 
 WoW Orders Growth =
 VAR CurrentWeek = MAX(weekly_kpis[week_start])
 VAR PrevWeek    = CurrentWeek - 7
-VAR ThisOrd = CALCULATE(SUM(weekly_kpis[total_orders]),
-                        weekly_kpis[week_start] = CurrentWeek)
-VAR PrevOrd = CALCULATE(SUM(weekly_kpis[total_orders]),
-                        weekly_kpis[week_start] = PrevWeek)
+VAR ThisOrd     = CALCULATE(SUM(weekly_kpis[total_orders]), weekly_kpis[week_start] = CurrentWeek)
+VAR PrevOrd     = CALCULATE(SUM(weekly_kpis[total_orders]), weekly_kpis[week_start] = PrevWeek)
 RETURN DIVIDE(ThisOrd - PrevOrd, PrevOrd, 0)
 ```
 
-### Predictive Measures
+### Predictions
 
 ```dax
 Predicted Revenue =
-CALCULATE(SUM(sales_forecast[predicted_revenue]),
-          NOT(ISBLANK(sales_forecast[predicted_revenue])))
+CALCULATE(
+    SUM(sales_forecast[predicted_revenue]),
+    sales_forecast[is_future] = TRUE()
+)
 
-Forecast Error =
+Forecast Error % =
 DIVIDE(
     ABS(SUM(sales_forecast[prediction_error])),
     SUM(sales_forecast[actual_revenue]),
@@ -155,141 +151,119 @@ DIVIDE(
 )
 
 High Risk Customers =
-CALCULATE(COUNTROWS(customer_churn_risk),
-          customer_churn_risk[risk_level] = "High")
+CALCULATE(COUNTROWS(customer_churn_risk), customer_churn_risk[risk_level] = "High")
 
-Churn Risk Rate =
-DIVIDE([High Risk Customers], COUNTROWS(customer_churn_risk), 0)
+Churn Risk Rate = DIVIDE([High Risk Customers], COUNTROWS(customer_churn_risk), 0)
+
+Increasing Demand Categories =
+CALCULATE(
+    DISTINCTCOUNT(product_demand_predictions[product_category]),
+    product_demand_predictions[demand_trend] = "Increasing"
+)
 ```
 
 ---
 
-## 5. Dashboard Pages
-
----
+## 4. Dashboard Pages (6 pages)
 
 ### Page 1 — Executive Overview
+**Purpose:** Single-glance KPI summary for leadership
 
-**Purpose:** Single-screen business summary for leadership.
-
-**Visuals:**
-- 6× KPI Cards: Total Revenue, Total Orders, AOV, Gross Margin %, Active Customers, Conversion Rate
-- Line chart: Weekly Revenue trend (last 12 weeks)
-- Clustered bar: Revenue by Customer Segment
-- Donut: Revenue by Sales Channel
-- KPI Card: WoW Revenue Growth, WoW Orders Growth
-- Slicer: Date range, Customer Segment
-
-**Key fields:**
-- `weekly_kpis[total_revenue]`, `[total_orders]`, `[avg_order_value]`, `[gross_margin_pct]`, `[unique_customers]`, `[conversion_rate]`
+Visuals:
+- 4 KPI cards: Total Revenue, Total Orders, Active Customers, Gross Margin %
+- Line chart: Total Revenue by week_start (from weekly_kpis)
+- Bar chart: Revenue by customer_segment (from segment_performance)
+- Bar chart: Revenue by sales_channel (from sales_channel_performance)
+- Slicer: year (from dim_date)
 
 ---
 
 ### Page 2 — Weekly KPI Tracking
+**Purpose:** Week-over-week trend monitoring
 
-**Purpose:** Operational view of week-by-week performance.
-
-**Visuals:**
-- Line + Column combo: Weekly Revenue (bars) + WoW Growth (line)
-- Line chart: Weekly Orders trend
-- Area chart: New vs Repeat Customers per week
-- Table: Weekly KPI summary (all `weekly_kpis` columns)
-- Slicer: Year, Quarter
-
-**Key fields:**
-- `weekly_kpis` (all columns), `[revenue_wow_growth]`, `[orders_wow_growth]`
+Visuals:
+- Line chart: Total Revenue + WoW Revenue Growth over time (weekly_kpis)
+- Line chart: Total Orders + WoW Orders Growth over time
+- Column chart: New Customers vs Repeat Customers by week
+- KPI cards: Conversion Rate, Cart Abandonment Rate, Avg Discount
+- Slicer: Date range (week_start from weekly_kpis)
 
 ---
 
-### Page 3 — Product & Category Performance
+### Page 3 — Product & Category Analysis
+**Purpose:** Product mix, category trends, demand signals
 
-**Purpose:** Identify top-performing products and demand patterns.
-
-**Visuals:**
-- Bar chart (horizontal): Top 10 Products by Revenue
-- Treemap: Revenue by Product Category
-- Scatter plot: Units Sold vs Gross Margin % by Category
-- Table: Category breakdown (revenue, units, margin, trend)
-- Bar chart: Product Demand Trend (Increasing / Stable / Decreasing count)
-- Slicer: Product Category
-
-**Key fields:**
-- `fact_orders[product_name]`, `[product_category]`, `[revenue]`, `[margin]`, `[quantity]`
-- `product_demand_predictions[demand_trend]`
+Visuals:
+- Bar chart: Revenue by product_category (fact_orders)
+- Table: Top 20 products by revenue (dim_products + fact_orders)
+- Line chart: Actual vs Predicted units by category (product_demand_predictions)
+- Color-coded table: demand_trend by product_category (Increasing/Stable/Decreasing)
+- Slicer: product_category
 
 ---
 
 ### Page 4 — Customer & Segment Analysis
+**Purpose:** Customer health, segment profitability, churn risk
 
-**Purpose:** Understand the customer base, loyalty, and value distribution.
-
-**Visuals:**
-- Stacked bar: Revenue by Customer Segment
-- KPI Cards: Active Customers, New Customers, Repeat Rate
-- Scatter plot: Purchase Frequency vs AOV (coloured by Segment)
-- Bar chart: Top 10 Customers by Revenue
-- Histogram / Distribution: Days Since Last Purchase
-- Table: Segment performance summary
-
-**Key fields:**
-- `dim_customers`, `segment_performance`, `fact_orders[customer_segment]`
+Visuals:
+- Donut chart: Revenue share by customer_segment (segment_performance)
+- Table: Segment metrics — revenue, orders, avg order value, repeat rate (segment_performance)
+- Bar chart: Churn risk distribution by risk_level (customer_churn_risk)
+- Scatter plot: churn_risk_probability vs total_revenue per customer (customer_churn_risk)
+- KPI cards: High Risk Customers, Churn Risk Rate, Repeat Customer Rate
+- Slicer: customer_segment, risk_level
 
 ---
 
 ### Page 5 — Predictive Insights
+**Purpose:** Sales forecast, forward outlook
 
-**Purpose:** Forward-looking view powered by ML models.
-
-**Visuals:**
-- Line chart: Actual Revenue vs Predicted Revenue (with future forecast dashed)
-- Table: Customer Churn Risk — top 20 high-risk customers
-- Bar chart: Customers by Risk Level (Low / Medium / High)
-- Bar chart: Product categories with Increasing / Decreasing demand
-- KPI Card: High Risk Customers count, Churn Risk Rate
-- Slicer: Risk Level, Product Category
-
-**Key fields:**
-- `sales_forecast[actual_revenue]`, `[predicted_revenue]`
-- `customer_churn_risk[churn_risk_probability]`, `[risk_level]`
-- `product_demand_predictions[demand_trend]`, `[predicted_units_sold]`
+Visuals:
+- Line chart: actual_revenue vs predicted_revenue over time (sales_forecast)
+  - Filter `is_future = FALSE` for actuals line
+  - Show both actuals and forecast together, use color to distinguish
+- Column chart: Forecast for next 4 weeks (is_future = TRUE)
+- KPI cards: Predicted Revenue (next 4 weeks), Forecast Error %
+- Bar chart: Demand trend by category (product_demand_predictions — latest week)
+- Slicer: model_name (sales_forecast)
 
 ---
 
 ### Page 6 — Model Performance
+**Purpose:** ML model accuracy for technical/data stakeholders
 
-**Purpose:** Transparent view of ML model quality for technical stakeholders.
-
-**Visuals:**
-- Table: `model_performance` — algorithm, target, MAE, RMSE, MAPE, F1, AUC
-- KPI Cards: Best Forecast MAPE %, Churn Model F1, Churn Model AUC
-- Bar chart: Forecast Error by week (actual vs predicted comparison)
-- Text card: Plain-language model explanation (add manually in Power BI)
-
-**Key fields:**
-- `model_performance` (all columns)
-- `sales_forecast[prediction_error]`
+Visuals:
+- Matrix or table: model_performance filtered by metric_type = "Regression"
+  - Rows: model, Columns: metric_name, Values: metric_value
+- Matrix: model_performance filtered by metric_type = "Classification"
+- KPI cards: Best model MAE, Best F1, Best ROC_AUC
+- Text box explaining what each metric means
 
 ---
 
-## 6. Recommended Color Theme
+## 5. Slicers to Add (report-level)
 
-| Metric | Color |
-|--------|-------|
-| Revenue / Positive | `#1E8449` (dark green) |
-| Orders | `#2980B9` (blue) |
-| Margin | `#8E44AD` (purple) |
-| Churn / Risk High | `#C0392B` (red) |
-| Risk Medium | `#E67E22` (orange) |
-| Risk Low | `#27AE60` (green) |
-| Forecast | `#F39C12` (amber, dashed line) |
-| Neutral/Background | `#F2F3F4` |
+Add these as sync'd slicers across multiple pages:
+- **Year** — dim_date[year]
+- **Quarter** — dim_date[quarter]
+- **Customer Segment** — dim_customers[customer_segment]
+- **Sales Channel** — fact_orders[sales_channel]
 
 ---
 
-## 7. Suggested Filter Panel (Global Slicers)
+## 6. Color Theme
 
-Add these slicers to every page via the **Sync Slicers** panel:
-- `fact_orders[order_date]` — date range picker
-- `fact_orders[customer_segment]` — multi-select
-- `fact_orders[sales_channel]` — multi-select
-- `fact_orders[product_category]` — multi-select
+| Color | Use |
+|-------|-----|
+| `#1E8449` Dark green | Primary brand, positive trends |
+| `#2980B9` Blue | Revenue, orders |
+| `#8E44AD` Purple | Predictions, ML |
+| `#C0392B` Red | Churn, negative trends |
+| `#E67E22` Orange | Warnings, medium risk |
+| `#F39C12` Amber | Growth metrics |
+
+---
+
+> **Warning:** Do not use the `powerbi/EcommercePerformanceDashboard.SemanticModel/` TMDL
+> folder as a substitute for this workflow. That folder is a schema reference artifact.
+> Build your report from scratch in Power BI Desktop using the CSV imports described above.

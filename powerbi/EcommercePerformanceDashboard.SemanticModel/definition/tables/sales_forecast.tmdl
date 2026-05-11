@@ -30,6 +30,11 @@ table sales_forecast
 		summarizeBy: none
 		sourceColumn: model_name
 
+	column is_future
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_future
+
 	partition sales_forecast-sales_forecast = m
 		mode: import
 		source =
@@ -44,10 +49,10 @@ table sales_forecast
 				        {"actual_revenue", type number},
 				        {"predicted_revenue", type number},
 				        {"prediction_error", type number},
-				        {"model_name", type text}
+				        {"model_name", type text},
+				        {"is_future", type logical}
 				    })
 				in
 				    #"Changed Type"
 
 	annotation PBI_ResultType = Table
-
