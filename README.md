@@ -207,5 +207,5 @@ A completed export of the Power BI report is available as a PDF in the `reports/
 
 ## Author
 
-Built as a portfolio project for a Digital Commerce Intern application.
+Built as a portfolio project.
 Stack: Python · pandas · scikit-learn · Power BI
