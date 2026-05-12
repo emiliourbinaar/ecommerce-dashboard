@@ -1,6 +1,6 @@
 # Digital Commerce Performance Dashboard
 
-A production-style Python + Power BI portfolio project demonstrating end-to-end ecommerce analytics: data engineering, business KPI calculation, and machine learning — built for a Digital Commerce context.
+A production-style Python + Power BI + Streamlit portfolio project demonstrating end-to-end ecommerce analytics: data engineering, business KPI calculation, and machine learning — built for a Digital Commerce context.
 
 ---
 
@@ -32,7 +32,7 @@ This project simulates that environment using synthetic B2B data across 14 month
 | KPI calculation | Python · pandas |
 | Machine learning | scikit-learn (RandomForest, GradientBoosting, LogisticRegression) |
 | Data storage | CSV (Power BI) · Parquet (internal) |
-| Visualization | Power BI Desktop |
+| Visualization | Power BI Desktop · Streamlit · Plotly |
 
 ---
 
@@ -45,9 +45,7 @@ ecommerce-digital-commerce-dashboard/
 │   ├── raw/                    # Original generated dataset
 │   ├── processed/              # Cleaned + feature-enriched Parquet files
 │   │   └── models/             # Serialized ML models (.pkl)
-│   └── powerbi/                # Final CSV exports for Power BI
-│
-├── notebooks/                  # Exploratory notebooks (optional)
+│   └── powerbi/                # Final CSV exports for Power BI and Streamlit
 │
 ├── src/
 │   ├── config.py               # Central configuration (paths, constants)
@@ -59,10 +57,18 @@ ecommerce-digital-commerce-dashboard/
 │   ├── generate_predictions.py # Inference & prediction export
 │   └── export_powerbi_tables.py# Final table validation & export
 │
+├── powerbi/
+│   └── EcommercePerformanceDashboard.SemanticModel/  # TMDL schema reference
+│
 ├── reports/
 │   └── powerbi_page_plan.md    # Power BI data model + DAX + page layouts
 │
+├── .streamlit/
+│   └── config.toml             # Streamlit theme configuration
+│
+├── app.py                      # Streamlit dashboard (5 pages)
 ├── main.py                     # Full pipeline runner
+├── ecommerce_dashboard.pdf     # Completed Power BI report export
 ├── requirements.txt
 └── README.md
 ```
@@ -158,7 +164,7 @@ See `reports/powerbi_page_plan.md` for the full setup guide including relationsh
 
 ## Streamlit Dashboard
 
-An interactive web dashboard built with Streamlit and Plotly covers two pages — Executive Overview and Predictive Insights — and can be viewed in any browser without Power BI Desktop.
+An interactive web dashboard built with Streamlit and Plotly covers 5 pages — Executive Overview, Weekly KPI Tracking, Product & Category, Customer & Segment, and Predictive Insights — and can be viewed in any browser without Power BI Desktop.
 
 ```bash
 streamlit run app.py
@@ -218,4 +224,4 @@ A completed export of the Power BI report is available as `ecommerce_dashboard.p
 ## Author
 
 Built as a portfolio project.
-Stack: Python · pandas · scikit-learn · Power BI
+Stack: Python · NumPy · pandas · scikit-learn · Power BI · Streamlit · Plotly
