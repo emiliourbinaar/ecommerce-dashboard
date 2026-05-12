@@ -33,7 +33,13 @@ Home → Get Data → Text/CSV → import from `data/powerbi/`:
 | `product_demand_predictions.csv` | ML demand trends |
 | `model_performance.csv` | Model metrics (long format) |
 
-### Step 4 — Create relationships (Model view)
+### Step 4 — Disable Auto Date/Time
+
+File → Options and settings → Options → **Current File** → Data Load → uncheck **"Auto date/time"**.
+
+This prevents Power BI from splitting `week_start` and `order_date` into Year/Quarter/Month/Day hierarchies, which breaks date-based charts.
+
+### Step 5 — Create relationships (Model view)
 
 ```
 fact_orders[customer_id]          → dim_customers[customer_id]    Many-to-One
@@ -42,13 +48,13 @@ fact_orders[order_date]           → dim_date[date]                Many-to-One
 customer_churn_risk[customer_id]  → dim_customers[customer_id]    Many-to-One
 ```
 
-### Step 5 — Create DAX measures
+### Step 6 — Create DAX measures
 
 See `reports/powerbi_page_plan.md` for all measures, copy-paste ready.
 
-### Step 6 — Build visuals page by page
+### Step 7 — Build visuals page by page
 
-See `reports/powerbi_page_plan.md` for the 6-page layout plan.
+See `reports/powerbi_page_plan.md` for the 5-page layout plan.
 
 ---
 
