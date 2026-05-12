@@ -5,9 +5,10 @@
 > 1. Run `python main.py` to generate all CSVs in `data/powerbi/`
 > 2. Open Power BI Desktop → new blank report
 > 3. Import all 12 CSV files from `data/powerbi/`
-> 4. Create relationships manually in Model view (see Section 2)
-> 5. Create DAX measures (see Section 3)
-> 6. Build visuals page by page (see Section 4)
+> 4. **Disable Auto Date/Time** — File → Options → Current File → Data Load → uncheck "Auto date/time for new files". This prevents Power BI from splitting `week_start` into a Year/Quarter/Month/Day hierarchy, which breaks date-based charts.
+> 5. Create relationships manually in Model view (see Section 2)
+> 6. Create DAX measures (see Section 3)
+> 7. Build visuals page by page (see Section 4)
 >
 > Do **not** try to open the PBIP files in `powerbi/` as a report — the SemanticModel folder
 > is a schema reference only. Build your report directly from the CSV imports.
@@ -140,8 +141,14 @@ CALCULATE(
 
 Forecast Error % =
 DIVIDE(
-    ABS(SUM(sales_forecast[prediction_error])),
-    SUM(sales_forecast[actual_revenue]),
+    CALCULATE(
+        SUMX(sales_forecast, ABS(sales_forecast[prediction_error])),
+        sales_forecast[is_future] = FALSE()
+    ),
+    CALCULATE(
+        SUM(sales_forecast[actual_revenue]),
+        sales_forecast[is_future] = FALSE()
+    ),
     0
 )
 
@@ -170,7 +177,7 @@ CALCULATE(
 **Purpose:** Single-glance KPI summary for leadership
 
 Visuals:
-- 4 KPI cards: Total Revenue, Total Orders, Active Customers, Gross Margin %
+- 5 KPI cards: Total Revenue, Total Orders, Average Order Value, Active Customers, Gross Margin %
 - Line chart: Total Revenue by week_start (from weekly_kpis)
 - Bar chart: Revenue by customer_segment (from segment_performance)
 - Bar chart: Revenue by sales_channel (from sales_channel_performance)
