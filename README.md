@@ -174,7 +174,9 @@ streamlit run app.py
 
 ## Dashboard Report
 
-A completed export of the Power BI report is available as `ecommerce_dashboard.pdf` in the root of this repository. It includes all 5 dashboard pages and can be viewed without Power BI Desktop installed.
+A completed Power BI report is available as `powerbi/ecommerce_dashboard.pbix`. Download it and open it in Power BI Desktop to interact with the visuals, apply slicers, and explore the data directly.
+
+A static PDF export is also available as `ecommerce_dashboard.pdf` in the root of the repository for viewing without Power BI Desktop.
 
 ---
 
